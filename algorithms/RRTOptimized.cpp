@@ -22,6 +22,10 @@ float RRTOptimized::distance2(sf::Vector2f p1, sf::Vector2f p2) const {
     return (pow(p1.x - p2.x, 2) + pow(p2.y - p1.y, 2));
 }
 
+float RRTOptimized::distance2(float x1, float y1, float x2, float y2) {
+    return (pow(x1 - x2, 2) + pow(y2 - y1, 2));
+}
+
 Node* RRTOptimized::nearestNode(sf::Vector2f point) {
     Node* nearest = tree[0];
     float minDist = distance2(point, tree[0]->position);
@@ -60,15 +64,17 @@ bool RRTOptimized::run() {
         // move towards goal
         sf::Vector2f newPoint = nearest->position + direction * stepSize;
 
+        Line newPath(nearest->position.x, nearest->position.y, newPoint.x, newPoint.y);
         bool found = true;
         sf::Vector2f randPoint;
-        if (!collisionFree(nearest->position, newPoint)) {
+        std::pair<float, float> collisionPoint = collision(newPath);
+        if (collisionPoint.x != -1) {
             found = false;
             // search around the collision point
 
             for (int i = 0; i < 1000; ++i) {
-                randPoint.x = static_cast<float>(randint((int) nearest->position.x - stepSize, (int) nearest->position.x + stepSize));
-                randPoint.y = static_cast<float>(randint((int) nearest->position.y - stepSize, (int) nearest->position.y + stepSize));
+                randPoint.x = static_cast<float>(randint((int) collisionPoint.x - stepSize, (int) collisionPoint.x + stepSize));
+                randPoint.y = static_cast<float>(randint((int) collisionPoint.y - stepSize, (int) collisionPoint.y + stepSize));
 
                 if (collisionFree(nearest->position, randPoint)) {
                     newPoint = randPoint;
@@ -87,7 +93,7 @@ bool RRTOptimized::run() {
         std::cout << "pushing new node with " << collisionFree(nearest->position, newPoint) << std::endl;
         tree.push_back(newNode);
 
-            // Check if the new node is close to the goal
+        // Check if the new node is close to the goal
         if (distance2(newNode->position, goal) < stepSize*stepSize) {
             goalNode = newNode;  
             
@@ -101,15 +107,19 @@ bool RRTOptimized::run() {
     return false;
 }
 
-bool RRTOptimized::collision(Line& line) const {
+sf::Vector2f RRTOptimized::collision(Line& line) const {
     float minDist = FLT_MAX;
-    std::pair<float, float> minPoint;
+    std::Vector2f minPoint(-1, -1);
     for (auto& obstacle : obstacles) {
-        std::pair<float, float> intersec = linetorect(line, obstacle.getGlobalBounds());
+        sf::Vector2f intersec = linetorect(line, obstacle.getGlobalBounds());
 
-        if (intersec.first != -1 && distance2(intersec.first, intesec.second, line.x1, line.x2))
+        float dist = distance2(intersec.x, intesec.second, line.x1, line.x2);
+        if (intersec.x != -1 && dist < minDist) {
+            minDist = dist;
+            minPoint = intesec;
+        }
     }
-    return true;
+    return minPoint;
 }
 
 
@@ -117,20 +127,20 @@ sf::Vector2f RRTOptimized::linetoline(Line& l1, Line& l2) {
     float den = (l1.x1 - l1.x2)*(l2.y1 - l2.y2) - (l1.y1 - l1.y2)*(l2.x1 - l2.x2);
 
     if (std::abs(den) < MAX_TOLERANCE)
-        return std::make_pair(l1.x1, l1.y1);
+        return sf::Vector2f(l1.x1, l1.y1);
 
     float t = (l1.x1 - l2.x1)*(l2.y1 - l2.y2) - (l1.y1 - l2.y1)*(l2.x1 - l2.x2);
     float u = (l1.x1 - l1.x2)*(l1.y1 - l2.y1) - (l1.y1 - l1.y2)*(l1.x1 - l2.x1);
 
     if (0 <= t && t <= den && 0 <= u && u <= den) {
         t /= den;
-        return std::make_pair(l1.x1 + t*(l1.x2 - l1.x1), l1.y1 + t*(l1.y2 - l1.y1));
+        return sf::Vector2f(l1.x1 + t*(l1.x2 - l1.x1), l1.y1 + t*(l1.y2 - l1.y1));
     }
 
-    return std::make_pair(-1, -1);
+    return sf::Vector2f(-1, -1);
 }
 
-std::pair<float, float> linetorect(Line& line, sf::FloatRect& rect) {
+sf::Vector2f linetorect(Line& line, sf::FloatRect& rect) {
     Line rectLines[4] = {
         Line(rect.left, rect.top, rect.left, rect.top + rect.height), // left
         Line(rect.left, rect.top, rect.left + rect.width, rect.top), //top
@@ -139,15 +149,15 @@ std::pair<float, float> linetorect(Line& line, sf::FloatRect& rect) {
     };
 
     if (line.x1 >= rect.left && line.x1 <= rect.left + rect.width && line.y1 >= rect.top && line.y1 <= rect.top + rect.height) 
-        return std::make_pair(line.x1, line.y1);
+        return sf::Vector2f(line.x1, line.y1);
 
     float minDist = FLT_MAX;
-    std::pair<float, float> firstIn(-1, -1);
+    sf::Vector2f firstIn(-1, -1);
     for (Line& l : rectLines) {
-        std::pair<float, float> intersec = linetoline(line, l);
-        if (intersec.first == -1) continue;
+        sf::Vector2f intersec = linetoline(line, l);
+        if (intersec.x == -1) continue;
 
-        float d2 = dist2(line.x1, line.y1, intersec.first, intersec.second);
+        float d2 = dist2(line.x1, line.y1, intersec.x, intersec.y);
         if (d2 < minDist) {
             minDist = d2;
             firstIn = intersec;
