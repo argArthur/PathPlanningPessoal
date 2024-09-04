@@ -111,6 +111,50 @@ bool RRTOptimized::run() {
     return false;
 }
 
+sf::Vector2f RRTOptimized::linetoline(Line& l1, Line& l2) {
+    float den = (l1.x1 - l1.x2)*(l2.y1 - l2.y2) - (l1.y1 - l1.y2)*(l2.x1 - l2.x2);
+
+    if (std::abs(den) < MAX_TOLERANCE)
+        return std::make_pair(l1.x1, l1.y1);
+
+    float t = (l1.x1 - l2.x1)*(l2.y1 - l2.y2) - (l1.y1 - l2.y1)*(l2.x1 - l2.x2);
+    float u = (l1.x1 - l1.x2)*(l1.y1 - l2.y1) - (l1.y1 - l1.y2)*(l1.x1 - l2.x1);
+
+    if (0 <= t && t <= den && 0 <= u && u <= den) {
+        t /= den;
+        return std::make_pair(l1.x1 + t*(l1.x2 - l1.x1), l1.y1 + t*(l1.y2 - l1.y1));
+    }
+
+    return std::make_pair(-1, -1);
+}
+
+std::pair<float, float> linetorect(Line& line, Rect& rect) {
+    Line rectLines[4] = {
+        Line(rect.x, rect.y, rect.x, rect.y + rect.h), // left
+        Line(rect.x, rect.y, rect.x + rect.w, rect.y), //top
+        Line(rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h), // right
+        Line(rect.x, rect.h + rect.h, rect.x + rect.w, rect.y + rect.h) // bottom
+    };
+
+    if (line.x1 >= rect.x && line.x1 <= rect.x + rect.w && line.y1 >= rect.y && line.y1 <= rect.y + rect.h) 
+        return std::make_pair(line.x1, line.y1);
+
+    float minDist = FLT_MAX;
+    std::pair<float, float> firstIn(-1, -1);
+    for (Line& l : rectLines) {
+        std::pair<float, float> intersec = linetoline(line, l);
+        if (intersec.first == -1) continue;
+
+        float d2 = dist2(line.x1, line.y1, intersec.first, intersec.second);
+        if (d2 < minDist) {
+            minDist = d2;
+            firstIn = intersec;
+        }
+    }
+
+    return firstIn;
+}
+
 float RRTOptimized::getPathDistance() const {
     return pathLenght;
 }
