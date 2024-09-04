@@ -36,16 +36,6 @@ Node* RRTOptimized::nearestNode(sf::Vector2f point) {
     return nearest;
 }
 
-bool RRTOptimized::collisionFree(sf::Vector2f p1, sf::Vector2f p2) const {
-    sf::FloatRect lineBounds(p1, p2 - p1);
-    for (auto& obstacle : obstacles) {
-        if (obstacle.getGlobalBounds().intersects(lineBounds)) {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool RRTOptimized::run() {
     bool stopCondition = false;
 
@@ -111,6 +101,18 @@ bool RRTOptimized::run() {
     return false;
 }
 
+bool RRTOptimized::collision(Line& line) const {
+    float minDist = FLT_MAX;
+    std::pair<float, float> minPoint;
+    for (auto& obstacle : obstacles) {
+        std::pair<float, float> intersec = linetorect(line, obstacle.getGlobalBounds());
+
+        if (intersec.first != -1 && distance2(intersec.first, intesec.second, line.x1, line.x2))
+    }
+    return true;
+}
+
+
 sf::Vector2f RRTOptimized::linetoline(Line& l1, Line& l2) {
     float den = (l1.x1 - l1.x2)*(l2.y1 - l2.y2) - (l1.y1 - l1.y2)*(l2.x1 - l2.x2);
 
@@ -128,15 +130,15 @@ sf::Vector2f RRTOptimized::linetoline(Line& l1, Line& l2) {
     return std::make_pair(-1, -1);
 }
 
-std::pair<float, float> linetorect(Line& line, Rect& rect) {
+std::pair<float, float> linetorect(Line& line, sf::FloatRect& rect) {
     Line rectLines[4] = {
-        Line(rect.x, rect.y, rect.x, rect.y + rect.h), // left
-        Line(rect.x, rect.y, rect.x + rect.w, rect.y), //top
-        Line(rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h), // right
-        Line(rect.x, rect.h + rect.h, rect.x + rect.w, rect.y + rect.h) // bottom
+        Line(rect.left, rect.top, rect.left, rect.top + rect.height), // left
+        Line(rect.left, rect.top, rect.left + rect.width, rect.top), //top
+        Line(rect.left + rect.width, rect.top, rect.left + rect.width, rect.top + rect.height), // right
+        Line(rect.left, rect.height + rect.height, rect.left + rect.width, rect.top + rect.height) // bottom
     };
 
-    if (line.x1 >= rect.x && line.x1 <= rect.x + rect.w && line.y1 >= rect.y && line.y1 <= rect.y + rect.h) 
+    if (line.x1 >= rect.left && line.x1 <= rect.left + rect.width && line.y1 >= rect.top && line.y1 <= rect.top + rect.height) 
         return std::make_pair(line.x1, line.y1);
 
     float minDist = FLT_MAX;

@@ -27,6 +27,7 @@ private:
     sf::Vector2f linetorect(Line& line, sf::FloatRect rect) const;
     sf::Vector2f collision(Line& line) const;
     float distance2(sf::Vector2f p1, sf::Vector2f p2) const;
+    float distance2(std::pair<float, float> p1, std::pair<float, float> p2) const;
 
     std::vector<Node*> tree;
     std::vector<sf::Vector2f>* path;
