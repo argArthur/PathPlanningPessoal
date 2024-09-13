@@ -1,6 +1,9 @@
 #include "RRTOptimized.h"
 #include "utils.h"
 #include <immintrin.h>
+#include <cfloat>
+
+#define MAX_TOLERANCE 0.001
 
 #if defined(__x86_64__) || defined(_M_X64)
 inline float rsqrt(const float f)
@@ -22,7 +25,7 @@ float RRTOptimized::distance2(sf::Vector2f p1, sf::Vector2f p2) const {
     return (pow(p1.x - p2.x, 2) + pow(p2.y - p1.y, 2));
 }
 
-float RRTOptimized::distance2(float x1, float y1, float x2, float y2) {
+float RRTOptimized::distance2(float x1, float y1, float x2, float y2) const {
     return (pow(x1 - x2, 2) + pow(y2 - y1, 2));
 }
 
@@ -67,7 +70,7 @@ bool RRTOptimized::run() {
         Line newPath(nearest->position.x, nearest->position.y, newPoint.x, newPoint.y);
         bool found = true;
         sf::Vector2f randPoint;
-        std::pair<float, float> collisionPoint = collision(newPath);
+        sf::Vector2f collisionPoint = collision(newPath);
         if (collisionPoint.x != -1) {
             found = false;
             // search around the collision point
@@ -76,7 +79,7 @@ bool RRTOptimized::run() {
                 randPoint.x = static_cast<float>(randint((int) collisionPoint.x - stepSize, (int) collisionPoint.x + stepSize));
                 randPoint.y = static_cast<float>(randint((int) collisionPoint.y - stepSize, (int) collisionPoint.y + stepSize));
 
-                if (collisionFree(nearest->position, randPoint)) {
+                if (collision(nearest->position, randPoint).x != -1) {
                     newPoint = randPoint;
                     found = true;
                     break;
@@ -90,7 +93,7 @@ bool RRTOptimized::run() {
         if (!found) std::cout << maxIt << " | broke trough\n";
 
         Node* newNode = new Node(newPoint, nearest);
-        std::cout << "pushing new node with " << collisionFree(nearest->position, newPoint) << std::endl;
+        //std::cout << "pushing new node with " << collisionFree(nearest->position, newPoint) << std::endl;
         tree.push_back(newNode);
 
         // Check if the new node is close to the goal
@@ -109,21 +112,26 @@ bool RRTOptimized::run() {
 
 sf::Vector2f RRTOptimized::collision(Line& line) const {
     float minDist = FLT_MAX;
-    std::Vector2f minPoint(-1, -1);
+    sf::Vector2f minPoint(-1, -1);
     for (auto& obstacle : obstacles) {
         sf::Vector2f intersec = linetorect(line, obstacle.getGlobalBounds());
 
-        float dist = distance2(intersec.x, intesec.second, line.x1, line.x2);
+        float dist = distance2(intersec.x, intersec.y, line.x1, line.x2);
         if (intersec.x != -1 && dist < minDist) {
             minDist = dist;
-            minPoint = intesec;
+            minPoint = intersec;
         }
     }
     return minPoint;
 }
 
+sf::Vector2f RRTOptimized::collision(sf::Vector2f p1, sf::Vector2f p2) const {
+    Line line(p1.x, p1.y, p2.x, p2.y);
+    return collision(line);
+}
 
-sf::Vector2f RRTOptimized::linetoline(Line& l1, Line& l2) {
+
+sf::Vector2f RRTOptimized::linetoline(Line& l1, Line& l2) const {
     float den = (l1.x1 - l1.x2)*(l2.y1 - l2.y2) - (l1.y1 - l1.y2)*(l2.x1 - l2.x2);
 
     if (std::abs(den) < MAX_TOLERANCE)
@@ -140,7 +148,7 @@ sf::Vector2f RRTOptimized::linetoline(Line& l1, Line& l2) {
     return sf::Vector2f(-1, -1);
 }
 
-sf::Vector2f linetorect(Line& line, sf::FloatRect& rect) {
+sf::Vector2f RRTOptimized::linetorect(Line& line, sf::FloatRect rect) const {
     Line rectLines[4] = {
         Line(rect.left, rect.top, rect.left, rect.top + rect.height), // left
         Line(rect.left, rect.top, rect.left + rect.width, rect.top), //top
@@ -157,7 +165,7 @@ sf::Vector2f linetorect(Line& line, sf::FloatRect& rect) {
         sf::Vector2f intersec = linetoline(line, l);
         if (intersec.x == -1) continue;
 
-        float d2 = dist2(line.x1, line.y1, intersec.x, intersec.y);
+        float d2 = distance2(line.x1, line.y1, intersec.x, intersec.y);
         if (d2 < minDist) {
             minDist = d2;
             firstIn = intersec;
